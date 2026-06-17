@@ -7,11 +7,12 @@ import { RocketModel } from './RocketModel'
 
 interface RocketSceneProps {
   orientation: [number, number, number, number]
+  servoAngles: [number, number]
   showDebug: boolean
   mirrorMode: boolean
 }
 
-export function RocketScene({ orientation, showDebug, mirrorMode }: RocketSceneProps) {
+export function RocketScene({ orientation, servoAngles, showDebug, mirrorMode }: RocketSceneProps) {
   const quaternion = useMemo(() => {
     const q = new Quaternion(orientation[1], orientation[2], orientation[3], orientation[0])
     q.normalize()
@@ -41,7 +42,7 @@ export function RocketScene({ orientation, showDebug, mirrorMode }: RocketSceneP
           cellSize={0.5}
           sectionSize={2}
         />
-        <RocketModel orientation={orientation} />
+        <RocketModel orientation={orientation} servoAngles={servoAngles} />
         {showDebug && (
           <group quaternion={quaternion}>
             <axesHelper args={[1.5]} />

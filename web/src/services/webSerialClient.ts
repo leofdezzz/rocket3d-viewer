@@ -36,7 +36,7 @@ export class WebSerialOrientationClient {
     void this.readLoop(onFrame, onStatus, onDiagnostic)
   }
 
-  async sendCommand(payload: Record<string, string>) {
+  async sendCommand(payload: Record<string, unknown>) {
     if (!this.port?.writable) {
       return
     }

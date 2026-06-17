@@ -35,6 +35,37 @@ rocket3d-viewer/
 
 Monta el MPU6050 rigidamente al cuerpo del cohete. Los pines I2C se cambian en `firmware/src/config.h`.
 
+## TVC (control vectorial de empuje) con PID
+
+Demo: dos servos **MG90S** en cardan (gimbal) desvian la tobera del motor para "rectificar" el cohete. Es solo demostracion (no hay empuje real): al rotar el cohete en cualquier eje, los servos giran la tobera en sentido opuesto a la inclinacion mediante un controlador **PID**.
+
+- Servo **X** → coincide con el eje X del MPU6050.
+- Servo **Y** (montado encima) → coincide con el eje Y del MPU6050.
+
+El firmware lee la inclinacion del IMU, corre 2 PID (uno por eje) y mueve los servos. La web muestra el cardan + tobera en 3D y permite ajustar `Kp/Ki/Kd` en vivo. En modo Simulador el PID corre en el navegador.
+
+### Cableado servos
+
+#### ESP32-C3 Mini (por defecto)
+
+| MG90S | ESP32-C3 Mini |
+|-------|----------------|
+| Señal X | **GPIO 3** |
+| Señal Y | **GPIO 4** |
+| VCC | 5V (fuente externa recomendada) |
+| GND | GND (comun con el ESP32) |
+
+#### ESP32 clasico
+
+| MG90S | ESP32 |
+|-------|-------|
+| Señal X | GPIO 18 |
+| Señal Y | GPIO 19 |
+| VCC | 5V |
+| GND | GND |
+
+> Los MG90S consumen picos de corriente; aliméntalos con una fuente de 5V dedicada y une las masas (GND comun). Pines, limites de desvio y ganancias PID por defecto estan en `firmware/src/config.h`.
+
 ## Firmware
 
 ### Requisitos
@@ -78,13 +109,16 @@ Para unirse a tu red WiFi, descomenta `#define WIFI_USE_STA` en `firmware/src/co
 Cada linea JSON (serial y WebSocket):
 
 ```json
-{"t":123456,"q":[w,x,y,z]}
+{"t":123456,"q":[w,x,y,z],"s":[servoX,servoY]}
 ```
 
-Comando entrante:
+`s` es el desvio actual de los servos TVC en grados.
+
+Comandos entrantes:
 
 ```json
 {"cmd":"zero"}
+{"cmd":"pid","kp":0.8,"ki":0.15,"kd":0.05}
 ```
 
 ## Web

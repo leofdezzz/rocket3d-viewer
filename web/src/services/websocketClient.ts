@@ -32,7 +32,7 @@ export class WebSocketOrientationClient {
     }
   }
 
-  sendCommand(payload: Record<string, string>) {
+  sendCommand(payload: Record<string, unknown>) {
     if (this.socket?.readyState === WebSocket.OPEN) {
       this.socket.send(JSON.stringify(payload))
     }
@@ -52,14 +52,18 @@ export class WebSocketOrientationClient {
 
 function parseFrame(raw: string): OrientationFrame | null {
   try {
-    const data = JSON.parse(raw) as { t?: number; q?: number[] }
+    const data = JSON.parse(raw) as { t?: number; q?: number[]; s?: number[] }
     if (!Array.isArray(data.q) || data.q.length !== 4) {
       return null
     }
-    return {
+    const frame: OrientationFrame = {
       t: typeof data.t === 'number' ? data.t : Date.now(),
       q: data.q as [number, number, number, number],
     }
+    if (Array.isArray(data.s) && data.s.length === 2) {
+      frame.s = [data.s[0], data.s[1]]
+    }
+    return frame
   } catch {
     return null
   }

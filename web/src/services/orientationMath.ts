@@ -1,22 +1,40 @@
-import { Euler, Quaternion } from 'three'
+import { Euler, Quaternion, Vector3 } from 'three'
 
 import type { OrientationFrame } from '../types/orientation'
 
-export const SLERP_ALPHA = 0.15
+export const SLERP_ALPHA = 1
 
-// Remap MPU6050 frame (X right, Y forward, Z up when flat) to Three.js Y-up.
-const IMU_TO_THREE = new Quaternion().setFromEuler(
-  new Euler(-Math.PI / 2, 0, 0, 'XYZ'),
-)
-
-// Tras calibrar cero, nariz del cohete hacia +Y (arriba), no hacia abajo.
-const UPRIGHT_CORRECTION = new Quaternion().setFromEuler(
-  new Euler(Math.PI, 0, 0, 'XYZ'),
-)
+// MPU montado en vertical dentro del cohete: +Y = eje largo (nariz), +X y +Z = inclinacion.
+// Three.js Y-up coincide con MPU +Y; no hace falta remapeo extra.
+const IMU_TO_THREE = new Quaternion()
 
 const _raw = new Quaternion()
 const _calibrated = new Quaternion()
+const _swing = new Quaternion()
+const _twist = new Quaternion()
 const _remapped = new Quaternion()
+
+const _eulerYXZ = new Euler(0, 0, 0, 'YXZ')
+
+/** Invierte el sentido de rotacion alrededor de +Z (roll). */
+function invertRollAroundZ(q: Quaternion, out: Quaternion): Quaternion {
+  _eulerYXZ.setFromQuaternion(q, 'YXZ')
+  _eulerYXZ.z = -_eulerYXZ.z
+  out.setFromEuler(_eulerYXZ)
+  return out
+}
+
+/** Quita el giro sobre el eje largo (+Y): solo muestra inclinacion (X/Z), no roll sobre nariz. */
+function removeTwistAroundBodyY(q: Quaternion, out: Quaternion): Quaternion {
+  const twistNorm = Math.hypot(q.y, q.w)
+  if (twistNorm < 1e-6) {
+    out.copy(q)
+    return out
+  }
+  _twist.set(0, q.y / twistNorm, 0, q.w / twistNorm)
+  out.copy(q).multiply(_twist.invert())
+  return out
+}
 
 export function parseOrientationLine(line: string): OrientationFrame | null {
   const trimmed = line.trim()
@@ -28,6 +46,7 @@ export function parseOrientationLine(line: string): OrientationFrame | null {
     const data = JSON.parse(trimmed) as {
       t?: number
       q?: number[]
+      s?: number[]
       error?: string
       hint?: string
       status?: string
@@ -46,10 +65,14 @@ export function parseOrientationLine(line: string): OrientationFrame | null {
       return null
     }
 
-    return {
+    const frame: OrientationFrame = {
       t: typeof data.t === 'number' ? data.t : Date.now(),
       q: [w, x, y, z],
     }
+    if (Array.isArray(data.s) && data.s.length === 2) {
+      frame.s = [data.s[0], data.s[1]]
+    }
+    return frame
   } catch {
     return null
   }
@@ -93,20 +116,51 @@ export function parseSerialDiagnostic(line: string): string | null {
   }
 }
 
+/**
+ * Offset de calibracion: inversa de la lectura cruda en el momento de calibrar.
+ * Asi `offset * raw` da la orientacion relativa a la pose calibrada (identidad al calibrar).
+ */
 export function createOffsetFromFrame(frame: OrientationFrame): Quaternion {
   _raw.set(frame.q[1], frame.q[2], frame.q[3], frame.q[0]).normalize()
   return _raw.clone().invert()
 }
 
+/**
+ * Orientacion calibrada en el marco MPU (+Y = eje largo), relativa a la pose de calibrado.
+ * Usada por gimbal/TVC: servos en ejes X y Z del cuerpo.
+ */
+export function calibratedOrientation(
+  frame: OrientationFrame,
+  offset: Quaternion,
+  out: Quaternion,
+): Quaternion {
+  out.set(frame.q[1], frame.q[2], frame.q[3], frame.q[0]).normalize()
+  out.premultiply(offset)
+  return out
+}
+
+/**
+ * Orientacion final para Three.js: sin giro sobre eje largo, luego remap MPU->Three.
+ * display = IMU_TO_THREE * swing(offset * raw)
+ */
 export function applyOrientationPipeline(
   frame: OrientationFrame,
   offset: Quaternion,
   target: Quaternion,
+  options?: { snap?: boolean },
 ): Quaternion {
-  _raw.set(frame.q[1], frame.q[2], frame.q[3], frame.q[0]).normalize()
-  _calibrated.copy(offset).multiply(_raw)
-  _remapped.copy(UPRIGHT_CORRECTION).multiply(IMU_TO_THREE).multiply(_calibrated)
-  target.slerp(_remapped, SLERP_ALPHA)
+  calibratedOrientation(frame, offset, _calibrated)
+  invertRollAroundZ(_calibrated, _calibrated)
+  removeTwistAroundBodyY(_calibrated, _swing)
+  _remapped.copy(IMU_TO_THREE).multiply(_swing)
+  if (target.dot(_remapped) < 0) {
+    _remapped.set(-_remapped.x, -_remapped.y, -_remapped.z, -_remapped.w)
+  }
+  if (options?.snap) {
+    target.copy(_remapped)
+  } else {
+    target.slerp(_remapped, SLERP_ALPHA)
+  }
   return target
 }
 
@@ -114,10 +168,19 @@ export function quaternionToTuple(q: Quaternion): [number, number, number, numbe
   return [q.w, q.x, q.y, q.z]
 }
 
+const _axisX = new Vector3(1, 0, 0)
+const _axisZ = new Vector3(0, 0, 1)
+const _qx = new Quaternion()
+const _qz = new Quaternion()
+
+/**
+ * Simula inclinacion en marco MPU: pitch=X, roll=Z (giro sobre +Y ignorado en display).
+ */
 export function createSimulatorQuaternion(timeSeconds: number): [number, number, number, number] {
   const pitch = Math.sin(timeSeconds * 0.7) * 0.35
-  const roll = Math.sin(timeSeconds * 0.5) * 0.25
-  const yaw = Math.sin(timeSeconds * 0.3) * 0.4
-  const q = new Quaternion().setFromEuler(new Euler(pitch, yaw, roll, 'YXZ'))
+  const roll = -Math.sin(timeSeconds * 0.5) * 0.25
+  _qx.setFromAxisAngle(_axisX, pitch)
+  _qz.setFromAxisAngle(_axisZ, roll)
+  const q = _qz.multiply(_qx)
   return [q.w, q.x, q.y, q.z]
 }

@@ -1,6 +1,7 @@
 #include "WebSocketTransport.h"
 
 #include <ArduinoJson.h>
+#include <cstring>
 #include <functional>
 
 WebSocketTransport* WebSocketTransport::instance_ = nullptr;
@@ -42,8 +43,12 @@ void WebSocketTransport::onCommand(std::function<void(const char* cmd)> handler)
   commandHandler_ = std::move(handler);
 }
 
+void WebSocketTransport::onPidGains(std::function<void(float kp, float ki, float kd)> handler) {
+  pidHandler_ = std::move(handler);
+}
+
 void WebSocketTransport::handleEvent(uint8_t /*num*/, WStype_t type, uint8_t* payload, size_t length) {
-  if (type != WStype_TEXT || payload == nullptr || commandHandler_ == nullptr) {
+  if (type != WStype_TEXT || payload == nullptr) {
     return;
   }
 
@@ -54,12 +59,17 @@ void WebSocketTransport::handleEvent(uint8_t /*num*/, WStype_t type, uint8_t* pa
   }
 
   const char* cmd = doc["cmd"];
-  if (cmd != nullptr) {
+  if (cmd == nullptr) {
+    return;
+  }
+  if (strcmp(cmd, "pid") == 0 && pidHandler_) {
+    pidHandler_(doc["kp"] | 0.0f, doc["ki"] | 0.0f, doc["kd"] | 0.0f);
+  } else if (commandHandler_) {
     commandHandler_(cmd);
   }
 }
 
-void WebSocketTransport::broadcastOrientation(unsigned long timestampMs, const float q[4]) {
+void WebSocketTransport::broadcastOrientation(unsigned long timestampMs, const float q[4], const float servo[2]) {
   JsonDocument doc;
   doc["t"] = timestampMs;
   JsonArray quat = doc["q"].to<JsonArray>();
@@ -67,6 +77,9 @@ void WebSocketTransport::broadcastOrientation(unsigned long timestampMs, const f
   quat.add(q[1]);
   quat.add(q[2]);
   quat.add(q[3]);
+  JsonArray srv = doc["s"].to<JsonArray>();
+  srv.add(servo[0]);
+  srv.add(servo[1]);
 
   char buffer[128];
   const size_t len = serializeJson(doc, buffer, sizeof(buffer));

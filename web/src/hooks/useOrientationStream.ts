@@ -3,10 +3,12 @@ import { Quaternion } from 'three'
 
 import {
   applyOrientationPipeline,
+  calibratedOrientation,
   createOffsetFromFrame,
   createSimulatorQuaternion,
   quaternionToTuple,
 } from '../services/orientationMath'
+import { TvcController, DEFAULT_PID_GAINS, gimbalDeflectionFromOrientation, SERVO_MAX_DEFLECT_DEG } from '../services/tvc'
 import { WebSerialOrientationClient } from '../services/webSerialClient'
 import { WebSocketOrientationClient } from '../services/websocketClient'
 import type {
@@ -14,9 +16,14 @@ import type {
   ConnectionStatus,
   OrientationFrame,
   OrientationPayload,
+  PidGains,
 } from '../types/orientation'
 
 const DEFAULT_WS_URL = 'ws://192.168.4.1:81/'
+
+function clampServo(v: number): number {
+  return Math.max(-SERVO_MAX_DEFLECT_DEG, Math.min(SERVO_MAX_DEFLECT_DEG, v))
+}
 
 export function useOrientationStream() {
   const [mode, setMode] = useState<ConnectionMode>('simulator')
@@ -25,6 +32,8 @@ export function useOrientationStream() {
   const [wsUrl, setWsUrl] = useState(DEFAULT_WS_URL)
   const [frameRate, setFrameRate] = useState(0)
   const [orientation, setOrientation] = useState<[number, number, number, number]>([1, 0, 0, 0])
+  const [servoAngles, setServoAngles] = useState<[number, number]>([0, 0])
+  const [pidGains, setPidGainsState] = useState<PidGains>(DEFAULT_PID_GAINS)
   const [diagnostic, setDiagnostic] = useState<string | null>(null)
   const [waitingForData, setWaitingForData] = useState(false)
 
@@ -32,8 +41,11 @@ export function useOrientationStream() {
   const serialClient = useRef(new WebSerialOrientationClient())
   const offsetRef = useRef(new Quaternion())
   const displayRef = useRef(new Quaternion())
+  const calibratedRef = useRef(new Quaternion())
   const lastFrameRef = useRef<OrientationFrame | null>(null)
   const frameTimesRef = useRef<number[]>([])
+  const tvcRef = useRef(new TvcController(DEFAULT_PID_GAINS))
+  const lastTickRef = useRef<number | null>(null)
 
   const handleFrame = useCallback((frame: OrientationFrame) => {
     lastFrameRef.current = frame
@@ -41,12 +53,32 @@ export function useOrientationStream() {
     setOrientation(quaternionToTuple(displayRef.current))
 
     const now = performance.now()
+
+    calibratedOrientation(frame, offsetRef.current, calibratedRef.current)
+    const [servoX, servoY] = gimbalDeflectionFromOrientation(calibratedRef.current)
+    setServoAngles([clampServo(servoX), clampServo(servoY)])
+    lastTickRef.current = now
+
     frameTimesRef.current.push(now)
     frameTimesRef.current = frameTimesRef.current.filter((t) => now - t <= 1000)
     setFrameRate(frameTimesRef.current.length)
     setWaitingForData(false)
     setDiagnostic(null)
   }, [])
+
+  const setPidGains = useCallback(
+    (gains: PidGains) => {
+      setPidGainsState(gains)
+      tvcRef.current.setGains(gains)
+      const payload = { cmd: 'pid', kp: gains.kp, ki: gains.ki, kd: gains.kd }
+      if (mode === 'websocket') {
+        wsClient.current.sendCommand(payload)
+      } else if (mode === 'serial') {
+        void serialClient.current.sendCommand(payload)
+      }
+    },
+    [mode],
+  )
 
   const disconnect = useCallback(async () => {
     wsClient.current.disconnect()
@@ -115,9 +147,14 @@ export function useOrientationStream() {
   }, [disconnect])
 
   const calibrateZero = useCallback(() => {
+    tvcRef.current.reset()
+    lastTickRef.current = null
+    setServoAngles([0, 0])
     if (lastFrameRef.current) {
       offsetRef.current.copy(createOffsetFromFrame(lastFrameRef.current))
-      applyOrientationPipeline(lastFrameRef.current, offsetRef.current, displayRef.current)
+      applyOrientationPipeline(lastFrameRef.current, offsetRef.current, displayRef.current, {
+        snap: true,
+      })
       setOrientation(quaternionToTuple(displayRef.current))
     } else {
       offsetRef.current.identity()
@@ -175,6 +212,8 @@ export function useOrientationStream() {
 
   const payload: OrientationPayload = {
     orientation,
+    servoAngles,
+    pidGains,
     frameRate,
     status,
     mode,
@@ -190,6 +229,7 @@ export function useOrientationStream() {
     useSimulator,
     disconnect,
     calibrateZero: sendZeroCommand,
+    setPidGains,
     diagnostic,
     waitingForData,
   }

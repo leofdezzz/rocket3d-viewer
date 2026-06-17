@@ -1,4 +1,4 @@
-import type { ConnectionMode, ConnectionStatus } from '../types/orientation'
+import type { ConnectionMode, ConnectionStatus, PidGains } from '../types/orientation'
 
 interface ConnectionPanelProps {
   mode: ConnectionMode
@@ -10,6 +10,9 @@ interface ConnectionPanelProps {
   wsUrl: string
   mirrorMode: boolean
   showDebug: boolean
+  servoAngles: [number, number]
+  pidGains: PidGains
+  onPidGainsChange: (gains: PidGains) => void
   onWsUrlChange: (url: string) => void
   onConnectWebSocket: () => void
   onConnectSerial: () => void
@@ -19,6 +22,12 @@ interface ConnectionPanelProps {
   onToggleMirror: () => void
   onToggleDebug: () => void
 }
+
+const PID_SLIDERS: { key: keyof PidGains; label: string; max: number; step: number }[] = [
+  { key: 'kp', label: 'Kp', max: 3, step: 0.01 },
+  { key: 'ki', label: 'Ki', max: 1, step: 0.005 },
+  { key: 'kd', label: 'Kd', max: 0.5, step: 0.005 },
+]
 
 const STATUS_LABEL: Record<ConnectionStatus, string> = {
   disconnected: 'Desconectado',
@@ -37,6 +46,9 @@ export function ConnectionPanel({
   wsUrl,
   mirrorMode,
   showDebug,
+  servoAngles,
+  pidGains,
+  onPidGainsChange,
   onWsUrlChange,
   onConnectWebSocket,
   onConnectSerial,
@@ -115,6 +127,37 @@ export function ConnectionPanel({
             {showDebug ? 'Ocultar ejes' : 'Mostrar ejes'}
           </button>
         </div>
+      </section>
+
+      <section className="panel-section">
+        <h2>TVC / PID</h2>
+        <div className="stats">
+          <div>
+            <span className="label">Servo X</span>
+            <strong>{servoAngles[0].toFixed(1)}&deg;</strong>
+          </div>
+          <div>
+            <span className="label">Servo Y</span>
+            <strong>{servoAngles[1].toFixed(1)}&deg;</strong>
+          </div>
+        </div>
+        {PID_SLIDERS.map(({ key, label, max, step }) => (
+          <label className="field" key={key}>
+            <span>
+              {label}: {pidGains[key].toFixed(3)}
+            </span>
+            <input
+              type="range"
+              min={0}
+              max={max}
+              step={step}
+              value={pidGains[key]}
+              onChange={(event) =>
+                onPidGainsChange({ ...pidGains, [key]: Number(event.target.value) })
+              }
+            />
+          </label>
+        ))}
       </section>
 
       <section className="panel-section note">

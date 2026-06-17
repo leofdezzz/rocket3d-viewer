@@ -1,13 +1,14 @@
 #include "SerialTransport.h"
 
 #include <ArduinoJson.h>
+#include <cstring>
 
 void SerialTransport::begin(unsigned long baud) {
   Serial.begin(baud);
   delay(500);
 }
 
-void SerialTransport::sendOrientation(unsigned long timestampMs, const float q[4]) {
+void SerialTransport::sendOrientation(unsigned long timestampMs, const float q[4], const float servo[2]) {
   JsonDocument doc;
   doc["t"] = timestampMs;
   JsonArray quat = doc["q"].to<JsonArray>();
@@ -15,13 +16,17 @@ void SerialTransport::sendOrientation(unsigned long timestampMs, const float q[4
   quat.add(q[1]);
   quat.add(q[2]);
   quat.add(q[3]);
+  JsonArray srv = doc["s"].to<JsonArray>();
+  srv.add(servo[0]);
+  srv.add(servo[1]);
 
   serializeJson(doc, Serial);
   Serial.println();
   Serial.flush();
 }
 
-void SerialTransport::pollCommands(std::function<void(const char* cmd)> handler) {
+void SerialTransport::pollCommands(std::function<void(const char* cmd)> cmdHandler,
+                                   std::function<void(float kp, float ki, float kd)> pidHandler) {
   if (!Serial.available()) {
     return;
   }
@@ -38,7 +43,12 @@ void SerialTransport::pollCommands(std::function<void(const char* cmd)> handler)
   }
 
   const char* cmd = doc["cmd"];
-  if (cmd != nullptr) {
-    handler(cmd);
+  if (cmd == nullptr) {
+    return;
+  }
+  if (strcmp(cmd, "pid") == 0 && pidHandler) {
+    pidHandler(doc["kp"] | 0.0f, doc["ki"] | 0.0f, doc["kd"] | 0.0f);
+  } else if (cmdHandler) {
+    cmdHandler(cmd);
   }
 }

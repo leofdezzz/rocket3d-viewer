@@ -10,6 +10,8 @@ public:
   bool begin();
   void update();
   void getQuaternion(float q[4]) const;
+  // Inclinacion del eje +Y (nariz, MPU vertical). tiltX -> servo X, tiltY -> servo Z.
+  void getTilt(float& tiltXDeg, float& tiltYDeg) const;
   void zeroReference();
 
   bool isReady() const { return ready_; }

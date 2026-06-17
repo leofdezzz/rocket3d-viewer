@@ -12,7 +12,6 @@ private:
   float kp_ = 2.0f;
   float ki_ = 0.005f;
   float integralX_ = 0.0f;
-  float integralY_ = 0.0f;
   float integralZ_ = 0.0f;
   float q0_ = 1.0f;
   float q1_ = 0.0f;

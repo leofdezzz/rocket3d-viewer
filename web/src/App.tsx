@@ -17,6 +17,7 @@ function App() {
     useSimulator,
     disconnect,
     calibrateZero,
+    setPidGains,
     diagnostic,
     waitingForData,
   } = useOrientationStream()
@@ -33,6 +34,9 @@ function App() {
         wsUrl={wsUrl}
         mirrorMode={mirrorMode}
         showDebug={showDebug}
+        servoAngles={payload.servoAngles}
+        pidGains={payload.pidGains}
+        onPidGainsChange={setPidGains}
         onWsUrlChange={setWsUrl}
         onConnectWebSocket={() => void connectWebSocket()}
         onConnectSerial={() => void connectSerial()}
@@ -45,6 +49,7 @@ function App() {
       <main className="viewport">
         <RocketScene
           orientation={payload.orientation}
+          servoAngles={payload.servoAngles}
           showDebug={showDebug}
           mirrorMode={mirrorMode}
         />

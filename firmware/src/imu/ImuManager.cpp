@@ -121,6 +121,16 @@ void ImuManager::getQuaternion(float q[4]) const {
   q[3] = q3_;
 }
 
+void ImuManager::getTilt(float& tiltXDeg, float& tiltYDeg) const {
+  // Eje +Y del cuerpo (nariz, MPU montado en vertical). tiltX -> servo X, tiltY -> servo Z.
+  const float yx = 2.0f * (q1_ * q2_ + q0_ * q3_);
+  const float yy = q0_ * q0_ - q1_ * q1_ + q2_ * q2_ - q3_ * q3_;
+  const float yz = 2.0f * (q2_ * q3_ - q0_ * q1_);
+
+  tiltXDeg = atan2f(yz, yy) * RAD_TO_DEG;
+  tiltYDeg = -atan2f(yx, yy) * RAD_TO_DEG;
+}
+
 void ImuManager::zeroReference() {
   filter_.reset();
   q0_ = 1.0f;

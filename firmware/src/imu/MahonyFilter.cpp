@@ -13,7 +13,6 @@ void MahonyFilter::reset() {
   q2_ = 0.0f;
   q3_ = 0.0f;
   integralX_ = 0.0f;
-  integralY_ = 0.0f;
   integralZ_ = 0.0f;
 }
 
@@ -35,15 +34,13 @@ void MahonyFilter::update(float gx, float gy, float gz, float ax, float ay, floa
   float vz = q0_ * q0_ - q1_ * q1_ - q2_ * q2_ + q3_ * q3_;
 
   float ex = ay * vz - az * vy;
-  float ey = az * vx - ax * vz;
   float ez = ax * vy - ay * vx;
 
   integralX_ += ex * ki_ * dt;
-  integralY_ += ey * ki_ * dt;
   integralZ_ += ez * ki_ * dt;
 
   gx += kp_ * ex + integralX_;
-  gy += kp_ * ey + integralY_;
+  // MPU vertical en cohete: +Y = eje largo; sin correccion de accel en Y (giro sobre eje largo).
   gz += kp_ * ez + integralZ_;
 
   const float halfDt = 0.5f * dt;
