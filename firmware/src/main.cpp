@@ -1,7 +1,7 @@
 #include <Arduino.h>
 
 #include "config.h"
-#include "control/PidController.h"
+#include "control/TvcControl.h"
 #include "imu/I2cScan.h"
 #include "imu/ImuManager.h"
 #include "transport/SerialTransport.h"
@@ -12,8 +12,7 @@ ImuManager imu;
 SerialTransport serialTransport;
 WebSocketTransport wsTransport;
 ServoTvc servoTvc;
-PidController pidX;
-PidController pidY;
+TvcControl tvcControl;
 
 unsigned long lastSendMs = 0;
 unsigned long lastControlMs = 0;
@@ -33,15 +32,22 @@ void logJson(const char* key, const char* value) {
 void handleCommand(const char* cmd) {
   if (strcmp(cmd, "zero") == 0) {
     imu.zeroReference();
-    pidX.reset();
-    pidY.reset();
+    tvcControl.reset();
+#if ENABLE_SERVOS
+    servoTvc.center();
+#endif
     logJson("status", "zeroed");
+  } else if (strcmp(cmd, "servo_test") == 0) {
+#if ENABLE_SERVOS
+    servoTvc.runSelfTest();
+#else
+    logJson("status", "servos_disabled");
+#endif
   }
 }
 
 void handlePidGains(float kp, float ki, float kd) {
-  pidX.setGains(kp, ki, kd);
-  pidY.setGains(kp, ki, kd);
+  tvcControl.setGains(kp, ki, kd);
   Serial.printf("{\"status\":\"pid\",\"kp\":%.4f,\"ki\":%.4f,\"kd\":%.4f}\n", kp, ki, kd);
   Serial.flush();
 }
@@ -59,17 +65,24 @@ void runControl(unsigned long nowMs) {
   float tiltY = 0.0f;
   imu.getTilt(tiltX, tiltY);
 
-  // Error = +tilt (invertido respecto a inclinacion para corregir en el sentido correcto).
-  servoDeflect[0] = pidX.compute(tiltX, dt);
-  servoDeflect[1] = pidY.compute(tiltY, dt);
-  servoTvc.setDeflection(servoDeflect[0], servoDeflect[1]);
+#if ENABLE_SERVOS
+  if (servoTvc.isReady()) {
+    tvcControl.update(tiltX, tiltY, dt, servoDeflect[0], servoDeflect[1]);
+    servoTvc.setDeflection(servoDeflect[0], servoDeflect[1]);
+  }
+#endif
 }
 
 void sendOrientation(unsigned long nowMs) {
   float q[4];
   imu.getQuaternion(q);
+#if ENABLE_SERVOS
   serialTransport.sendOrientation(nowMs, q, servoDeflect);
   wsTransport.broadcastOrientation(nowMs, q, servoDeflect);
+#else
+  serialTransport.sendOrientation(nowMs, q);
+  wsTransport.broadcastOrientation(nowMs, q);
+#endif
 }
 
 void reportImuFailure() {
@@ -111,9 +124,29 @@ void setup() {
     }
   }
 
+#if ENABLE_SERVOS
   servoTvc.begin();
-  pidX.begin(PID_KP, PID_KI, PID_KD, SERVO_MAX_DEFLECT_DEG);
-  pidY.begin(PID_KP, PID_KI, PID_KD, SERVO_MAX_DEFLECT_DEG);
+  if (servoTvc.isReady()) {
+    logJson("status", "servo_ok");
+    Serial.printf(
+        "{\"servo_pwm\":{\"x_us\":%d,\"y_us\":%d,\"x_pin\":%d,\"y_pin\":%d}}\n",
+        servoTvc.readPulseUsX(),
+        servoTvc.readPulseUsY(),
+        SERVO_X_PIN,
+        SERVO_Y_PIN);
+    Serial.flush();
+  } else {
+    Serial.printf(
+        "{\"error\":\"servo_init_failed\",\"x_pin\":%d,\"y_pin\":%d,\"hint\":\"check 5V "
+        "servo power and signal wires\"}\n",
+        SERVO_X_PIN,
+        SERVO_Y_PIN);
+    Serial.flush();
+  }
+  tvcControl.begin(PID_KP, PID_KI, PID_KD, SERVO_MAX_DEFLECT_DEG);
+#else
+  logJson("status", "servos_disabled");
+#endif
   lastControlMicros = micros();
 
   logJson("status", "ready");

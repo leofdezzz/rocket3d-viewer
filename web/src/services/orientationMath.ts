@@ -1,4 +1,4 @@
-import { Euler, Quaternion, Vector3 } from 'three'
+import { Quaternion, Vector3 } from 'three'
 
 import type { OrientationFrame } from '../types/orientation'
 
@@ -13,16 +13,6 @@ const _calibrated = new Quaternion()
 const _swing = new Quaternion()
 const _twist = new Quaternion()
 const _remapped = new Quaternion()
-
-const _eulerYXZ = new Euler(0, 0, 0, 'YXZ')
-
-/** Invierte el sentido de rotacion alrededor de +Z (roll). */
-function invertRollAroundZ(q: Quaternion, out: Quaternion): Quaternion {
-  _eulerYXZ.setFromQuaternion(q, 'YXZ')
-  _eulerYXZ.z = -_eulerYXZ.z
-  out.setFromEuler(_eulerYXZ)
-  return out
-}
 
 /** Quita el giro sobre el eje largo (+Y): solo muestra inclinacion (X/Z), no roll sobre nariz. */
 function removeTwistAroundBodyY(q: Quaternion, out: Quaternion): Quaternion {
@@ -139,6 +129,17 @@ export function calibratedOrientation(
   return out
 }
 
+/** Misma orientacion de cuerpo que la escena 3D (sin roll de nariz), para el gimbal TVC. */
+export function orientationForTvc(
+  frame: OrientationFrame,
+  offset: Quaternion,
+  out: Quaternion,
+): Quaternion {
+  calibratedOrientation(frame, offset, out)
+  removeTwistAroundBodyY(out, out)
+  return out
+}
+
 /**
  * Orientacion final para Three.js: sin giro sobre eje largo, luego remap MPU->Three.
  * display = IMU_TO_THREE * swing(offset * raw)
@@ -150,7 +151,6 @@ export function applyOrientationPipeline(
   options?: { snap?: boolean },
 ): Quaternion {
   calibratedOrientation(frame, offset, _calibrated)
-  invertRollAroundZ(_calibrated, _calibrated)
   removeTwistAroundBodyY(_calibrated, _swing)
   _remapped.copy(IMU_TO_THREE).multiply(_swing)
   if (target.dot(_remapped) < 0) {

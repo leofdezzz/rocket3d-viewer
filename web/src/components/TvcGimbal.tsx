@@ -1,6 +1,10 @@
 import { useFrame } from '@react-three/fiber'
-import { useRef } from 'react'
-import type { Group } from 'three'
+import { useMemo, useRef } from 'react'
+import { AdditiveBlending, DoubleSide, type Group } from 'three'
+
+import { createGroundClipPlane } from '../services/groundClip'
+import { SERVO_MAX_DEFLECT_DEG } from '../services/tvc'
+import { ExhaustPlume } from './ExhaustPlume'
 
 const DEG_TO_RAD = Math.PI / 180
 
@@ -14,18 +18,29 @@ interface TvcGimbalProps {
   position: [number, number, number]
   /** Radio del cuerpo en la base; escala el gimbal al cohete. */
   baseRadius?: number
+  /** Altura mundial del suelo para recortar la pluma. */
+  groundY: number
 }
 
 /**
  * Gimbal TVC en marco MPU vertical: empuje nominal -Y, servo X -> eje X, servo Y -> eje Z.
  */
-export function TvcGimbal({ servoAngles, position, baseRadius = REF_BASE_RADIUS }: TvcGimbalProps) {
+export function TvcGimbal({ servoAngles, position, baseRadius = REF_BASE_RADIUS, groundY }: TvcGimbalProps) {
   const outerRef = useRef<Group>(null)
   const innerRef = useRef<Group>(null)
   const anglesRef = useRef(servoAngles)
   anglesRef.current = servoAngles
 
   const scale = baseRadius / REF_BASE_RADIUS
+
+  const thrust = useMemo(() => {
+    const [sx, sy] = servoAngles
+    const tvc = Math.hypot(sx, sy) / SERVO_MAX_DEFLECT_DEG
+    return Math.min(1, 0.42 + tvc * 0.58)
+  }, [servoAngles])
+
+  const clipPlane = useMemo(() => createGroundClipPlane(groundY), [groundY])
+  const clippingPlanes = useMemo(() => [clipPlane], [clipPlane])
 
   useFrame(() => {
     const [servoX, servoY] = anglesRef.current
@@ -59,24 +74,51 @@ export function TvcGimbal({ servoAngles, position, baseRadius = REF_BASE_RADIUS 
             <meshStandardMaterial color="#cbd5e1" metalness={0.8} roughness={0.3} />
           </mesh>
 
-          {/* Tobera: eje alineado con Y, boca hacia -Y */}
-          <mesh position={[0, -0.22, 0]}>
-            <coneGeometry args={[0.18, 0.38, 24, 1, true]} />
-            <meshStandardMaterial color="#1e293b" metalness={0.6} roughness={0.5} side={2} />
-          </mesh>
+          {/* Motor TVC: campana metalica + nucleo luminoso + pluma suave (sin doble cono) */}
+          <group position={[0, -0.08, 0]}>
+            <mesh position={[0, 0, 0]}>
+              <cylinderGeometry args={[0.1, 0.12, 0.07, 20]} />
+              <meshStandardMaterial color="#64748b" metalness={0.92} roughness={0.28} />
+            </mesh>
 
-          {/* Llama */}
-          <mesh position={[0, -0.52, 0]}>
-            <coneGeometry args={[0.11, 0.42, 20]} />
-            <meshStandardMaterial
-              color="#ff7a18"
-              emissive="#ff5500"
-              emissiveIntensity={2.2}
-              transparent
-              opacity={0.85}
-            />
-          </mesh>
-          <pointLight position={[0, -0.58, 0]} intensity={1.4} distance={3} color="#ff7a18" />
+            <mesh position={[0, -0.15, 0]}>
+              <cylinderGeometry args={[0.065, 0.155, 0.22, 28]} />
+              <meshStandardMaterial color="#0f172a" metalness={0.88} roughness={0.35} />
+            </mesh>
+
+            <mesh position={[0, -0.27, 0]} rotation={[Math.PI / 2, 0, 0]}>
+              <torusGeometry args={[0.155, 0.011, 10, 32]} />
+              <meshStandardMaterial color="#94a3b8" metalness={0.95} roughness={0.18} />
+            </mesh>
+
+            <mesh position={[0, -0.29, 0]}>
+              <cylinderGeometry args={[0.04, 0.04, 0.02, 16]} />
+              <meshStandardMaterial
+                color="#fffbeb"
+                emissive="#ff6b00"
+                emissiveIntensity={5}
+                transparent
+                opacity={0.92}
+                clippingPlanes={clippingPlanes}
+              />
+            </mesh>
+
+            <mesh position={[0, -0.34, 0]}>
+              <coneGeometry args={[0.08, 0.16, 16, 1, true]} />
+              <meshBasicMaterial
+                color="#ff9933"
+                transparent
+                opacity={0.12}
+                blending={AdditiveBlending}
+                depthWrite={false}
+                side={DoubleSide}
+                clippingPlanes={clippingPlanes}
+              />
+            </mesh>
+
+            <pointLight position={[0, -0.28, 0]} intensity={1.1} distance={2.2} color="#ff7a18" />
+            <ExhaustPlume thrust={thrust} groundY={groundY} />
+          </group>
         </group>
       </group>
     </group>

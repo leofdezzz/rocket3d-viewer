@@ -56,6 +56,127 @@ button.secondary {
   height: 100%;
 }
 
+.app--presentation {
+  grid-template-columns: 1fr;
+}
+
+.app--presentation .viewport {
+  min-height: 100vh;
+}
+
+.presentation-exit {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  z-index: 20;
+  pointer-events: auto;
+  padding: 0.55rem 0.85rem;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.72) !important;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  color: #e2e8f0;
+  font-size: 0.82rem;
+  backdrop-filter: blur(8px);
+  transform: none;
+}
+
+.presentation-exit:hover {
+  background: rgba(30, 41, 59, 0.85);
+}
+
+.link-flash {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  animation: link-flash-fade 2.6s ease forwards;
+}
+
+.link-flash__scan {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    rgba(52, 211, 153, 0.08) 45%,
+    rgba(52, 211, 153, 0.18) 50%,
+    rgba(52, 211, 153, 0.08) 55%,
+    transparent 100%
+  );
+  animation: link-flash-scan 1.1s ease-out 0.15s;
+}
+
+.link-flash__content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 1.2rem 2rem;
+  border-radius: 16px;
+  border: 1px solid rgba(52, 211, 153, 0.45);
+  background: rgba(6, 24, 20, 0.82);
+  box-shadow:
+    0 0 40px rgba(52, 211, 153, 0.25),
+    inset 0 0 24px rgba(52, 211, 153, 0.08);
+  animation: link-flash-pop 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.link-flash__content strong {
+  font-size: clamp(1.8rem, 4vw, 2.6rem);
+  letter-spacing: 0.28em;
+  text-indent: 0.28em;
+  color: #6ee7b7;
+  font-family: 'JetBrains Mono', 'SF Mono', ui-monospace, monospace;
+}
+
+.link-flash__sub {
+  font-size: 0.78rem;
+  letter-spacing: 0.16em;
+  color: #94a3b8;
+  text-transform: uppercase;
+}
+
+.link-flash__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #34d399;
+  box-shadow: 0 0 16px #34d399;
+  animation: hud-pulse 0.9s ease-in-out infinite;
+}
+
+@keyframes link-flash-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.88);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes link-flash-scan {
+  from {
+    transform: translateY(-100%);
+  }
+  to {
+    transform: translateY(100%);
+  }
+}
+
+@keyframes link-flash-fade {
+  0%,
+  72% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
 .panel {
   padding: 1.25rem;
   background: #111827;
@@ -157,8 +278,445 @@ button.secondary {
 }
 
 .viewport {
+  position: relative;
   min-height: 100%;
+  overflow: hidden;
   background: radial-gradient(circle at top, #172554, #0b1020 55%);
+}
+
+.flight-hud {
+  position: absolute;
+  right: 1.1rem;
+  bottom: 1.1rem;
+  z-index: 10;
+  pointer-events: none;
+  font-family: 'JetBrains Mono', 'SF Mono', ui-monospace, monospace;
+}
+
+.flight-hud__frame {
+  position: relative;
+  width: min(300px, calc(100vw - 2.5rem));
+  padding: 0.75rem 0.85rem 0.7rem;
+  border-radius: 14px;
+  background:
+    linear-gradient(145deg, rgba(15, 23, 42, 0.88) 0%, rgba(2, 6, 23, 0.92) 100%);
+  border: 1px solid rgba(56, 189, 248, 0.22);
+  box-shadow:
+    0 0 0 1px rgba(15, 23, 42, 0.8) inset,
+    0 18px 40px rgba(2, 6, 23, 0.55),
+    0 0 32px rgba(37, 99, 235, 0.12);
+  backdrop-filter: blur(10px);
+}
+
+.flight-hud__corner {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border-color: rgba(125, 211, 252, 0.75);
+  border-style: solid;
+}
+
+.flight-hud__corner--tl {
+  top: 6px;
+  left: 6px;
+  border-width: 2px 0 0 2px;
+}
+
+.flight-hud__corner--tr {
+  top: 6px;
+  right: 6px;
+  border-width: 2px 2px 0 0;
+}
+
+.flight-hud__corner--bl {
+  bottom: 6px;
+  left: 6px;
+  border-width: 0 0 2px 2px;
+}
+
+.flight-hud__corner--br {
+  bottom: 6px;
+  right: 6px;
+  border-width: 0 2px 2px 0;
+}
+
+.flight-hud__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin-bottom: 0.65rem;
+  padding-bottom: 0.55rem;
+  border-bottom: 1px solid rgba(51, 65, 85, 0.65);
+}
+
+.flight-hud__title {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.flight-hud__label {
+  font-size: 0.72rem;
+  letter-spacing: 0.22em;
+  color: #7dd3fc;
+  font-weight: 600;
+}
+
+.flight-hud__subtitle {
+  font-size: 0.58rem;
+  letter-spacing: 0.16em;
+  color: #475569;
+}
+
+.flight-hud__status {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.25rem 0.55rem;
+  border-radius: 6px;
+  border: 1px solid rgba(100, 116, 139, 0.45);
+  background: rgba(15, 23, 42, 0.65);
+  color: #94a3b8;
+  font-size: 0.62rem;
+  letter-spacing: 0.14em;
+}
+
+.flight-hud__status--live {
+  border-color: rgba(52, 211, 153, 0.5);
+  color: #6ee7b7;
+  box-shadow: 0 0 16px rgba(52, 211, 153, 0.15);
+}
+
+.flight-hud__status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #64748b;
+}
+
+.flight-hud__status--live .flight-hud__status-dot {
+  background: #34d399;
+  box-shadow: 0 0 8px #34d399;
+  animation: hud-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes hud-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.55;
+    transform: scale(0.85);
+  }
+}
+
+.flight-hud__body {
+  display: grid;
+  grid-template-columns: 132px 1fr;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.flight-hud__horizon-shell {
+  position: relative;
+  width: 132px;
+  height: 132px;
+}
+
+.flight-hud__roll-pointer {
+  position: absolute;
+  left: 50%;
+  top: 4px;
+  width: 0;
+  height: 0;
+  margin-left: -6px;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-bottom: 10px solid #fbbf24;
+  transform-origin: 50% 62px;
+  filter: drop-shadow(0 0 4px rgba(251, 191, 36, 0.8));
+  z-index: 4;
+}
+
+.flight-hud__horizon-mask {
+  position: absolute;
+  inset: 6px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 2px solid rgba(148, 163, 184, 0.35);
+  box-shadow:
+    inset 0 0 24px rgba(2, 6, 23, 0.85),
+    0 0 20px rgba(59, 130, 246, 0.15);
+  background: #020617;
+}
+
+.flight-hud__scanlines {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(15, 23, 42, 0.12) 2px,
+    rgba(15, 23, 42, 0.12) 4px
+  );
+  opacity: 0.45;
+}
+
+.flight-hud__horizon-disk {
+  position: absolute;
+  left: -40%;
+  top: -75%;
+  width: 180%;
+  height: 250%;
+  transform-origin: center center;
+}
+
+.flight-hud__sky {
+  position: absolute;
+  inset: 0 0 50%;
+  background: linear-gradient(180deg, #0c1844 0%, #1d4ed8 45%, #38bdf8 100%);
+}
+
+.flight-hud__sky-glow {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 50% 100%, rgba(125, 211, 252, 0.35), transparent 55%);
+}
+
+.flight-hud__ground {
+  position: absolute;
+  inset: 50% 0 0;
+  background: linear-gradient(180deg, #7c2d12 0%, #451a03 55%, #1c0a02 100%);
+}
+
+.flight-hud__ground-grid {
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    90deg,
+    transparent,
+    transparent 14px,
+    rgba(251, 191, 36, 0.08) 14px,
+    rgba(251, 191, 36, 0.08) 15px
+  );
+}
+
+.flight-hud__horizon-line {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 2px;
+  margin-top: -1px;
+  background: linear-gradient(90deg, transparent, #fff 20%, #fff 80%, transparent);
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.85);
+  z-index: 2;
+}
+
+.flight-hud__pitch-line {
+  position: absolute;
+  left: 8%;
+  right: 8%;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.55);
+  z-index: 1;
+}
+
+.flight-hud__pitch-line--zero {
+  height: 2px;
+  background: rgba(251, 191, 36, 0.9);
+  box-shadow: 0 0 6px rgba(251, 191, 36, 0.6);
+}
+
+.flight-hud__pitch-left,
+.flight-hud__pitch-right {
+  position: absolute;
+  top: -0.5rem;
+  font-size: 0.48rem;
+  color: rgba(226, 232, 240, 0.85);
+  letter-spacing: 0.04em;
+}
+
+.flight-hud__pitch-left {
+  left: 0;
+}
+
+.flight-hud__pitch-right {
+  right: 0;
+}
+
+.flight-hud__roll-scale {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  z-index: 2;
+}
+
+.flight-hud__roll-tick {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 2px;
+  height: 8px;
+  margin-left: -1px;
+  margin-top: -4px;
+  background: rgba(226, 232, 240, 0.7);
+  transform-origin: center 58px;
+  font-size: 0;
+}
+
+.flight-hud__roll-tick--center {
+  height: 12px;
+  margin-top: -6px;
+  background: #fbbf24;
+  box-shadow: 0 0 6px rgba(251, 191, 36, 0.7);
+}
+
+.flight-hud__aircraft {
+  position: absolute;
+  inset: 6px;
+  z-index: 5;
+  pointer-events: none;
+}
+
+.flight-hud__reticle-h {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 44px;
+  height: 2px;
+  margin: -1px 0 0 -22px;
+  background: linear-gradient(90deg, transparent, #fbbf24 25%, #fbbf24 75%, transparent);
+  box-shadow: 0 0 8px rgba(251, 191, 36, 0.75);
+}
+
+.flight-hud__reticle-v {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 2px;
+  height: 16px;
+  margin: -8px 0 0 -1px;
+  background: #fbbf24;
+  box-shadow: 0 0 8px rgba(251, 191, 36, 0.75);
+}
+
+.flight-hud__dot {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 5px;
+  height: 5px;
+  margin: -2.5px 0 0 -2.5px;
+  border-radius: 50%;
+  background: #fbbf24;
+  box-shadow: 0 0 10px rgba(251, 191, 36, 0.9);
+}
+
+.flight-hud__metrics {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.45rem;
+}
+
+.flight-hud__metric {
+  display: flex;
+  flex-direction: column;
+  gap: 0.12rem;
+  padding: 0.4rem 0.5rem;
+  border-radius: 8px;
+  background: rgba(2, 6, 23, 0.55);
+  border: 1px solid rgba(51, 65, 85, 0.7);
+  min-height: 3.1rem;
+}
+
+.flight-hud__metric span {
+  font-size: 0.58rem;
+  letter-spacing: 0.14em;
+  color: #64748b;
+}
+
+.flight-hud__metric strong {
+  font-size: 0.88rem;
+  color: #f1f5f9;
+  font-variant-numeric: tabular-nums;
+}
+
+.flight-hud__metric--pitch strong,
+.flight-hud__metric--roll strong {
+  color: #7dd3fc;
+}
+
+.flight-hud__bar {
+  position: relative;
+  margin-top: auto;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(30, 41, 59, 0.9);
+  overflow: hidden;
+}
+
+.flight-hud__bar i {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  width: 50%;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #38bdf8, #2563eb);
+  transform-origin: left center;
+  transition: transform 0.08s linear;
+}
+
+.flight-hud__bar--horizontal i {
+  top: 50%;
+  left: 0;
+  width: 100%;
+  height: 50%;
+  transform-origin: center top;
+  background: linear-gradient(180deg, #38bdf8, #2563eb);
+}
+
+.flight-hud__footer {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 0.55rem;
+  margin-top: 0.65rem;
+  padding-top: 0.55rem;
+  border-top: 1px solid rgba(51, 65, 85, 0.65);
+  font-size: 0.58rem;
+  letter-spacing: 0.12em;
+  color: #64748b;
+}
+
+.flight-hud__tvc-track {
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(30, 41, 59, 0.95);
+  overflow: hidden;
+  box-shadow: inset 0 0 4px rgba(0, 0, 0, 0.35);
+}
+
+.flight-hud__tvc-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #fb923c, #f97316, #ef4444);
+  box-shadow: 0 0 12px rgba(249, 115, 22, 0.55);
+  transition: width 0.1s linear;
+}
+
+.flight-hud__tvc-value {
+  color: #fdba74;
+  font-size: 0.72rem;
+  min-width: 2.5rem;
+  text-align: right;
 }
 
 @media (max-width: 900px) {
@@ -174,5 +732,15 @@ button.secondary {
 
   .viewport {
     min-height: 60vh;
+  }
+
+  .flight-hud {
+    right: 0.65rem;
+    bottom: 0.65rem;
+    left: 0.65rem;
+  }
+
+  .flight-hud__frame {
+    width: 100%;
   }
 }

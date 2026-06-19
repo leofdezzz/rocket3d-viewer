@@ -77,9 +77,11 @@ void WebSocketTransport::broadcastOrientation(unsigned long timestampMs, const f
   quat.add(q[1]);
   quat.add(q[2]);
   quat.add(q[3]);
-  JsonArray srv = doc["s"].to<JsonArray>();
-  srv.add(servo[0]);
-  srv.add(servo[1]);
+  if (servo != nullptr) {
+    JsonArray srv = doc["s"].to<JsonArray>();
+    srv.add(servo[0]);
+    srv.add(servo[1]);
+  }
 
   char buffer[128];
   const size_t len = serializeJson(doc, buffer, sizeof(buffer));

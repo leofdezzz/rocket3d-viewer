@@ -3,9 +3,9 @@ import { Quaternion } from 'three'
 
 import {
   applyOrientationPipeline,
-  calibratedOrientation,
   createOffsetFromFrame,
   createSimulatorQuaternion,
+  orientationForTvc,
   quaternionToTuple,
 } from '../services/orientationMath'
 import { TvcController, DEFAULT_PID_GAINS, gimbalDeflectionFromOrientation, SERVO_MAX_DEFLECT_DEG } from '../services/tvc'
@@ -54,9 +54,14 @@ export function useOrientationStream() {
 
     const now = performance.now()
 
-    calibratedOrientation(frame, offsetRef.current, calibratedRef.current)
-    const [servoX, servoY] = gimbalDeflectionFromOrientation(calibratedRef.current)
-    setServoAngles([clampServo(servoX), clampServo(servoY)])
+    orientationForTvc(frame, offsetRef.current, calibratedRef.current)
+
+    if (frame.s && frame.s.length === 2) {
+      setServoAngles([clampServo(frame.s[0]), clampServo(frame.s[1])])
+    } else {
+      const [servoX, servoY] = gimbalDeflectionFromOrientation(calibratedRef.current)
+      setServoAngles([clampServo(servoX), clampServo(servoY)])
+    }
     lastTickRef.current = now
 
     frameTimesRef.current.push(now)

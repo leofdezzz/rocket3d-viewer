@@ -1,12 +1,15 @@
 #include "ServoTvc.h"
 
 #include <Arduino.h>
+#include <ESP32Servo.h>
 
 #include "../config.h"
 
 namespace {
-constexpr uint8_t SERVO_X_CHANNEL = 0;
-constexpr uint8_t SERVO_Y_CHANNEL = 1;
+Servo servoX;
+Servo servoY;
+bool readyX = false;
+bool readyY = false;
 
 float clampf(float v, float lo, float hi) {
   if (v < lo) return lo;
@@ -14,33 +17,40 @@ float clampf(float v, float lo, float hi) {
   return v;
 }
 
-uint8_t channelForPin(int pin) {
-  return pin == SERVO_Y_PIN ? SERVO_Y_CHANNEL : SERVO_X_CHANNEL;
+void allocatePwmTimers() {
+  ESP32PWM::allocateTimer(0);
+  ESP32PWM::allocateTimer(1);
+  ESP32PWM::allocateTimer(2);
+  ESP32PWM::allocateTimer(3);
 }
 
-bool setupServoChannel(int pin, uint8_t channel) {
-#if defined(ESP_ARDUINO_VERSION_MAJOR) && ESP_ARDUINO_VERSION_MAJOR >= 3
-  return ledcAttach(pin, SERVO_PWM_HZ, SERVO_PWM_BITS);
-#else
-  ledcSetup(channel, SERVO_PWM_HZ, SERVO_PWM_BITS);
-  ledcAttachPin(pin, channel);
-  return true;
-#endif
+bool attachServo(Servo& servo, int pin, int minUs, int maxUs) {
+  servo.setPeriodHertz(static_cast<int>(SERVO_PWM_HZ));
+  const int channel = servo.attach(pin, minUs, maxUs);
+  return channel != 0;
 }
 
-void writeServoDuty(int pin, uint32_t duty) {
-#if defined(ESP_ARDUINO_VERSION_MAJOR) && ESP_ARDUINO_VERSION_MAJOR >= 3
-  ledcWrite(pin, duty);
-#else
-  ledcWrite(channelForPin(pin), duty);
-#endif
+void logServoAttach(int pin, bool ok) {
+  Serial.printf("{\"servo_pin\":%d,\"attach\":%s}\n", pin, ok ? "ok" : "fail");
+  Serial.flush();
 }
 }  // namespace
 
 void ServoTvc::begin() {
-  ready_ = setupServoChannel(SERVO_X_PIN, SERVO_X_CHANNEL) &&
-           setupServoChannel(SERVO_Y_PIN, SERVO_Y_CHANNEL);
+  allocatePwmTimers();
+
+  readyX = attachServo(servoX, SERVO_X_PIN, SERVO_MIN_US, SERVO_MAX_US);
+  readyY = attachServo(servoY, SERVO_Y_PIN, SERVO_MIN_US, SERVO_MAX_US);
+
+  logServoAttach(SERVO_X_PIN, readyX);
+  logServoAttach(SERVO_Y_PIN, readyY);
+
+  ready_ = readyX && readyY;
   center();
+}
+
+bool ServoTvc::isReady() const {
+  return ready_;
 }
 
 void ServoTvc::center() {
@@ -55,13 +65,43 @@ void ServoTvc::setDeflection(float deflectXDeg, float deflectYDeg) {
 }
 
 void ServoTvc::writeAngle(int pin, float angleDeg) {
+  const float angle = clampf(angleDeg, 0.0f, 180.0f);
+  const int pulseDeg = static_cast<int>(angle);
+
+  if (pin == SERVO_X_PIN && readyX) {
+    servoX.write(pulseDeg);
+  } else if (pin == SERVO_Y_PIN && readyY) {
+    servoY.write(pulseDeg);
+  }
+}
+
+void ServoTvc::runSelfTest() {
   if (!ready_) {
+    Serial.println("{\"error\":\"servo_not_ready\"}");
+    Serial.flush();
     return;
   }
-  const float angle = clampf(angleDeg, 0.0f, 180.0f);
-  const float us = SERVO_MIN_US + (SERVO_MAX_US - SERVO_MIN_US) * (angle / 180.0f);
-  const float periodUs = 1000000.0f / SERVO_PWM_HZ;
-  const uint32_t maxCount = (1u << SERVO_PWM_BITS);
-  const uint32_t duty = static_cast<uint32_t>((us / periodUs) * maxCount);
-  writeServoDuty(pin, duty);
+
+  Serial.println("{\"status\":\"servo_test\"}");
+  Serial.flush();
+
+  constexpr int sweep[] = {75, 90, 105, 90};
+  for (int target : sweep) {
+    servoX.write(target);
+    servoY.write(target);
+    Serial.printf("{\"servo_test_angle\":%d}\n", target);
+    Serial.flush();
+    delay(400);
+  }
+  center();
+  Serial.println("{\"status\":\"servo_test_done\"}");
+  Serial.flush();
+}
+
+int ServoTvc::readPulseUsX() const {
+  return readyX ? servoX.readMicroseconds() : 0;
+}
+
+int ServoTvc::readPulseUsY() const {
+  return readyY ? servoY.readMicroseconds() : 0;
 }

@@ -11,7 +11,7 @@ class WebSocketTransport {
 public:
   void begin();
   void loop();
-  void broadcastOrientation(unsigned long timestampMs, const float q[4], const float servo[2]);
+  void broadcastOrientation(unsigned long timestampMs, const float q[4], const float servo[2] = nullptr);
   bool hasClients();
   void onCommand(std::function<void(const char* cmd)> handler);
   void onPidGains(std::function<void(float kp, float ki, float kd)> handler);

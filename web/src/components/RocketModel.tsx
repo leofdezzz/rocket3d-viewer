@@ -10,9 +10,11 @@ export const ROCKET_MODEL_URL = '/models/spacex_starship_spacecraft.glb'
 interface RocketModelProps {
   orientation: [number, number, number, number]
   servoAngles: [number, number]
+  groundY: number
+  onLayout?: (layout: RocketLayoutResult) => void
 }
 
-export function RocketModel({ orientation, servoAngles }: RocketModelProps) {
+export function RocketModel({ orientation, servoAngles, groundY, onLayout }: RocketModelProps) {
   const { scene } = useGLTF(ROCKET_MODEL_URL)
   const model = useMemo(() => scene.clone(true), [scene])
   const [layout, setLayout] = useState<RocketLayoutResult | null>(null)
@@ -20,6 +22,7 @@ export function RocketModel({ orientation, servoAngles }: RocketModelProps) {
   useLayoutEffect(() => {
     const result = layoutRocketModel(model)
     setLayout(result)
+    onLayout?.(result)
 
     model.traverse((child) => {
       if ((child as Mesh).isMesh) {
@@ -27,7 +30,7 @@ export function RocketModel({ orientation, servoAngles }: RocketModelProps) {
         child.receiveShadow = true
       }
     })
-  }, [model])
+  }, [model, onLayout])
 
   const quaternion = useMemo(() => {
     const q = new Quaternion(orientation[1], orientation[2], orientation[3], orientation[0])
@@ -37,14 +40,17 @@ export function RocketModel({ orientation, servoAngles }: RocketModelProps) {
 
   return (
     <group quaternion={quaternion}>
-      <primitive object={model} />
-      {layout && (
-        <TvcGimbal
-          servoAngles={servoAngles}
-          position={[layout.motorMount.x, layout.motorMount.y, layout.motorMount.z]}
-          baseRadius={layout.baseRadius}
-        />
-      )}
+      <group position={layout ? [0, -layout.pivotY, 0] : undefined}>
+        <primitive object={model} />
+        {layout && (
+          <TvcGimbal
+            servoAngles={servoAngles}
+            position={[layout.motorMount.x, layout.motorMount.y, layout.motorMount.z]}
+            baseRadius={layout.baseRadius}
+            groundY={groundY}
+          />
+        )}
+      </group>
     </group>
   )
 }

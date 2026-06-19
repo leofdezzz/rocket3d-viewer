@@ -45,6 +45,7 @@ float PidController::compute(float error, float dt) {
   float derivative = 0.0f;
   if (hasPrev_) {
     derivative = (error - prevError_) / dt;
+    derivative *= 0.35f;
   }
   prevError_ = error;
   hasPrev_ = true;

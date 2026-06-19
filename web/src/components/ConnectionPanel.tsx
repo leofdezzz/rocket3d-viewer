@@ -10,6 +10,8 @@ interface ConnectionPanelProps {
   wsUrl: string
   mirrorMode: boolean
   showDebug: boolean
+  showHud: boolean
+  presentationMode: boolean
   servoAngles: [number, number]
   pidGains: PidGains
   onPidGainsChange: (gains: PidGains) => void
@@ -21,6 +23,8 @@ interface ConnectionPanelProps {
   onCalibrate: () => void
   onToggleMirror: () => void
   onToggleDebug: () => void
+  onToggleHud: () => void
+  onTogglePresentation: () => void
 }
 
 const PID_SLIDERS: { key: keyof PidGains; label: string; max: number; step: number }[] = [
@@ -46,6 +50,8 @@ export function ConnectionPanel({
   wsUrl,
   mirrorMode,
   showDebug,
+  showHud,
+  presentationMode,
   servoAngles,
   pidGains,
   onPidGainsChange,
@@ -57,6 +63,8 @@ export function ConnectionPanel({
   onCalibrate,
   onToggleMirror,
   onToggleDebug,
+  onToggleHud,
+  onTogglePresentation,
 }: ConnectionPanelProps) {
   return (
     <aside className="panel">
@@ -125,6 +133,12 @@ export function ConnectionPanel({
           </button>
           <button type="button" className="secondary" onClick={onToggleDebug}>
             {showDebug ? 'Ocultar ejes' : 'Mostrar ejes'}
+          </button>
+          <button type="button" className="secondary" onClick={onToggleHud}>
+            {showHud ? 'Ocultar HUD' : 'Mostrar HUD'}
+          </button>
+          <button type="button" className="secondary" onClick={onTogglePresentation}>
+            {presentationMode ? 'Salir presentacion' : 'Modo presentacion'}
           </button>
         </div>
       </section>

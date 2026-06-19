@@ -16,9 +16,11 @@ void SerialTransport::sendOrientation(unsigned long timestampMs, const float q[4
   quat.add(q[1]);
   quat.add(q[2]);
   quat.add(q[3]);
-  JsonArray srv = doc["s"].to<JsonArray>();
-  srv.add(servo[0]);
-  srv.add(servo[1]);
+  if (servo != nullptr) {
+    JsonArray srv = doc["s"].to<JsonArray>();
+    srv.add(servo[0]);
+    srv.add(servo[1]);
+  }
 
   serializeJson(doc, Serial);
   Serial.println();

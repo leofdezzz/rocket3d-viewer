@@ -35,36 +35,42 @@ rocket3d-viewer/
 
 Monta el MPU6050 rigidamente al cuerpo del cohete. Los pines I2C se cambian en `firmware/src/config.h`.
 
-## TVC (control vectorial de empuje) con PID
+## Resumen de pines (ESP32-C3 Mini, entorno por defecto)
 
-Demo: dos servos **MG90S** en cardan (gimbal) desvian la tobera del motor para "rectificar" el cohete. Es solo demostracion (no hay empuje real): al rotar el cohete en cualquier eje, los servos giran la tobera en sentido opuesto a la inclinacion mediante un controlador **PID**.
+| Componente | Funcion | Pin |
+|------------|---------|-----|
+| MPU6050 | SDA (I2C) | **GPIO 5** |
+| MPU6050 | SCL (I2C) | **GPIO 6** |
+| LED integrado | Estado WiFi | **GPIO 8** (activo en LOW) |
+| Servo TVC X | PWM (solo si `ENABLE_SERVOS=true`) | GPIO 3 |
+| Servo TVC Y | PWM (solo si `ENABLE_SERVOS=true`) | GPIO 4 |
 
-- Servo **X** → coincide con el eje X del MPU6050.
-- Servo **Y** (montado encima) → coincide con el eje Y del MPU6050.
+### ESP32 clasico (DevKit WROOM)
 
-El firmware lee la inclinacion del IMU, corre 2 PID (uno por eje) y mueve los servos. La web muestra el cardan + tobera en 3D y permite ajustar `Kp/Ki/Kd` en vivo. En modo Simulador el PID corre en el navegador.
+| Componente | Pin |
+|------------|-----|
+| MPU6050 SDA | GPIO 21 |
+| MPU6050 SCL | GPIO 22 |
+| LED | GPIO 2 |
+| Servo X | GPIO 18 |
+| Servo Y | GPIO 19 |
 
-### Cableado servos
+Los pines se configuran en `firmware/src/config.h`.
 
-#### ESP32-C3 Mini (por defecto)
+## TVC (control vectorial de empuje)
 
-| MG90S | ESP32-C3 Mini |
-|-------|----------------|
-| Señal X | **GPIO 3** |
-| Señal Y | **GPIO 4** |
-| VCC | 5V (fuente externa recomendada) |
-| GND | GND (comun con el ESP32) |
+Demo visual en el **simulador web**: cardan + tobera + llama en 3D. Al inclinar el cohete, la tobera se desvia en sentido opuesto.
 
-#### ESP32 clasico
+En el **prototipo fisico** solo va conectado el MPU6050 (y opcionalmente WiFi). Los servos/motores **no se cablean** y el gimbal TVC **solo se ve en modo Simulador** de la web.
 
-| MG90S | ESP32 |
-|-------|-------|
-| Señal X | GPIO 18 |
-| Señal Y | GPIO 19 |
-| VCC | 5V |
-| GND | GND |
+Para activar servos reales en el firmware (montaje con MG90S), pon `ENABLE_SERVOS = true` en `config.h`:
 
-> Los MG90S consumen picos de corriente; aliméntalos con una fuente de 5V dedicada y une las masas (GND comun). Pines, limites de desvio y ganancias PID por defecto estan en `firmware/src/config.h`.
+| MG90S | ESP32-C3 Mini | ESP32 clasico |
+|-------|----------------|---------------|
+| Señal X | GPIO 3 | GPIO 18 |
+| Señal Y | GPIO 4 | GPIO 19 |
+| VCC | 5V (fuente externa) | 5V |
+| GND | GND comun | GND comun |
 
 ## Firmware
 

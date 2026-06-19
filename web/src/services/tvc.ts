@@ -2,7 +2,7 @@ import { Quaternion, Vector3 } from 'three'
 
 import type { PidGains } from '../types/orientation'
 
-export const DEFAULT_PID_GAINS: PidGains = { kp: 0.8, ki: 0.15, kd: 0.05 }
+export const DEFAULT_PID_GAINS: PidGains = { kp: 0.65, ki: 0.04, kd: 0.02 }
 
 /** Desvio maximo del servo desde el centro, en grados (coincide con el firmware). */
 export const SERVO_MAX_DEFLECT_DEG = 35
@@ -22,10 +22,13 @@ export function rocketAxisTilt(bodyQ: Quaternion): [number, number] {
   return [tiltX, tiltY]
 }
 
-/** Desvio de gimbal: opuesto al tilt en ambos ejes (cardan X / Z). */
+/**
+ * Desvio de gimbal en marco cuerpo (el padre 3D ya inclina el cohete).
+ * Misma direccion que el tilt para que la tobera siga apuntando hacia abajo en mundo.
+ */
 export function gimbalDeflectionFromOrientation(bodyQ: Quaternion): [number, number] {
   const [tiltX, tiltY] = rocketAxisTilt(bodyQ)
-  return [tiltX, -tiltY]
+  return [tiltX, tiltY]
 }
 
 function clamp(v: number, lo: number, hi: number): number {
