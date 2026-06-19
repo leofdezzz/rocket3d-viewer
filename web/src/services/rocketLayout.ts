@@ -57,7 +57,7 @@ export function layoutRocketModel(model: Object3D): RocketLayoutResult {
   const height = maxY - minY
 
   // Radio del cuerpo en la base (~50% del fuselaje: visible pero no a todo el diametro).
-  const baseRadius = (Math.min(_size.x, _size.y) / 2) * 0.5
+  const baseRadius = (Math.min(_size.x, _size.z) / 2) * 0.5
   const motorMount = new Vector3(0, minY, 0)
   const pivotY = minY + height * MPU_PIVOT_HEIGHT_FRAC
   const gimbalScale = Math.max(baseRadius, 0.2) / REF_BASE_RADIUS

@@ -1,5 +1,3 @@
-import { useEffect, useState } from 'react'
-
 import type { ConnectionMode } from '../types/orientation'
 
 interface LinkEstablishedOverlayProps {
@@ -14,24 +12,12 @@ const MODE_LABEL: Record<ConnectionMode, string> = {
 }
 
 export function LinkEstablishedOverlay({ flashId, mode }: LinkEstablishedOverlayProps) {
-  const [visible, setVisible] = useState(false)
-
-  useEffect(() => {
-    if (flashId === 0) {
-      return
-    }
-
-    setVisible(true)
-    const timer = window.setTimeout(() => setVisible(false), 2600)
-    return () => window.clearTimeout(timer)
-  }, [flashId])
-
-  if (!visible) {
+  if (flashId === 0) {
     return null
   }
 
   return (
-    <div className="link-flash" aria-live="polite">
+    <div className="link-flash" key={flashId} aria-live="polite">
       <div className="link-flash__scan" />
       <div className="link-flash__content">
         <span className="link-flash__dot" />
